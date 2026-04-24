@@ -18,10 +18,8 @@ st.markdown("""<style>
 
 centers = ['مركز مستشفى حديثة للتبرع بالدم', 'مختبر مستشفى حديثة للفحوصات الفيروسية', 'المركز التخصصي للاسنان', 'مركز صحي حديثة', 'مركز صحي بروانه', 'مركز صحي بني زاهر', 'مركز صحي حقلانيه', 'مركز صحي خفاجيه', 'مركز صحي بني داهر', 'مركز صحي الوس', 'مركز صحي السكران']
 
-st.title("🏥 نظام إدارة الفحوصات الفيروسية - قضاء حديثة")
-
 if 'logged_in' not in st.session_state:
-    st.subheader("تسجيل الدخول للمراكز")
+    st.title("🏥 دخول النظام الموحد - قضاء حديثة")
     center = st.selectbox("اختر المركز:", centers)
     code = st.text_input("أدخل كود الدخول:", type="password")
     if st.button("دخول"):
@@ -29,34 +27,58 @@ if 'logged_in' not in st.session_state:
         if len(res.data) > 0:
             st.session_state.logged_in = True
             st.session_state.center = center
-            st.session_state.is_admin = res.data[0]['is_admin']
+            st.session_state.is_admin = (center == 'مركز مستشفى حديثة للتبرع بالدم')
             st.rerun()
-        else:
-            st.error("الكود غير صحيح!")
+        else: st.error("الكود خطأ!")
 else:
-    st.sidebar.success(f"متصل: {st.session_state.center}")
+    st.sidebar.title(f"📍 {st.session_state.center}")
     if st.sidebar.button("خروج"):
         del st.session_state.logged_in
         st.rerun()
 
-    t1, t2 = st.tabs(["➕ إدخال مراجع", "🔍 بحث"])
+    t1, t2 = st.tabs(["➕ إضافة مراجع", "🔍 سجل الفحوصات العام"])
+
     with t1:
-        with st.form("f1", clear_on_submit=True):
+        with st.form("entry_form", clear_on_submit=True):
             n = st.text_input("الاسم الرباعي:")
-            a = st.text_input("العنوان:")
+            a = st.text_input("العنوان السكني:")
             i = st.selectbox("نوع الإصابة:", ["HCV", "HBsAg", "HIV", "Syphilis"])
-            d = st.radio("الجهاز:", ["Strips", "ELISA", "PCR"], horizontal=True)
-            p = st.text_input("نتيجة PCR (إن وجدت):")
+            d = st.radio("الجهاز المستخدم:", ["Strips", "ELISA", "PCR"], horizontal=True)
+            p = st.text_input("نتيجة الـ PCR:")
             if st.form_submit_button("حفظ"):
                 if n:
                     supabase.table("patients").insert({"full_name": n, "address": a, "infection_type": i, "test_device": d, "pcr_result": p, "entry_center": st.session_state.center}).execute()
-                    st.success("تم الحفظ!")
-                else: st.warning("اكتب الاسم!")
+                    st.success("تم الحفظ بنجاح")
+                else: st.error("اكتب الاسم!")
+
     with t2:
-        st.subheader("البحث")
-        sn = st.text_input("ابحث بالاسم:")
+        st.subheader("البحث في قاعدة البيانات الموحدة")
+        search = st.text_input("ابحث بالاسم:")
         query = supabase.table("patients").select("*")
-        if not st.session_state.is_admin: query = query.eq("entry_center", st.session_state.center)
-        if sn: query = query.ilike("full_name", f"%{sn}%")
-        res = query.order("created_at", desc=True).execute()
-        st.table(res.data)
+        if search: query = query.ilike("full_name", f"%{search}%")
+        data = query.order("created_at", desc=True).execute().data
+
+        if data:
+            for item in data:
+                with st.expander(f"👤 {item['full_name']} - ({item['entry_center']})"):
+                    # صلاحية التعديل والحذف
+                    has_permission = st.session_state.is_admin or (st.session_state.center == item['entry_center'])
+                    
+                    if has_permission:
+                        with st.form(key=f"edit_{item['id']}"):
+                            new_n = st.text_input("تعديل الاسم:", value=item['full_name'])
+                            new_p = st.text_input("تعديل PCR:", value=item['pcr_result'])
+                            col_up, col_del = st.columns(2)
+                            if col_up.form_submit_button("✅ حفظ التعديلات"):
+                                supabase.table("patients").update({"full_name": new_n, "pcr_result": new_p}).eq("id", item['id']).execute()
+                                st.success("تم التحديث")
+                                st.rerun()
+                            if col_del.form_submit_button("🗑️ حذف نهائي"):
+                                supabase.table("patients").delete().eq("id", item['id']).execute()
+                                st.warning("تم الحذف بنجاح")
+                                st.rerun()
+                    else:
+                        st.write(f"**نوع الإصابة:** {item['infection_type']}")
+                        st.write(f"**العنوان:** {item['address']}")
+                        st.info("ℹ️ لا تملك صلاحية تعديل هذا السجل لأنه تابع لمركز آخر.")
+        else: st.info("لا توجد بيانات.")
