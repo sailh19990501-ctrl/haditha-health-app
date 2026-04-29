@@ -1,6 +1,7 @@
 import streamlit as st
 from supabase import create_client
 from datetime import datetime, date, timedelta
+import time
 
 # --- 1. إعدادات الاتصال ---
 URL = "https://ngtkphoadvcvwqtuzawu.supabase.co"
@@ -23,10 +24,11 @@ st.markdown("""<style>
     #MainMenu, footer, header { visibility: hidden; }
 </style>""", unsafe_allow_html=True)
 
-# --- 3. الوظائف الذكية ---
+# --- 3. الوظائف الذكية (تحديث النشاط) ---
 def sync_activity():
     if 'center' in st.session_state:
         try:
+            # تحديث وقت النشاط للمستخدم الحالي
             supabase.table("active_sessions").upsert({
                 "center_name": st.session_state.center,
                 "last_active": datetime.utcnow().isoformat(),
@@ -42,7 +44,7 @@ def manage_chat_silent_limit():
             supabase.table("chat_messages").delete().lt("id", cutoff_id).execute()
     except: pass
 
-# --- 4. نظام الدخول وقائمة الرموز (حسب جدولك الأخير) ---
+# --- 4. نظام الدخول وقائمة الرموز ---
 if 'logged_in' not in st.session_state:
     st.markdown("<h1 style='text-align: center;'>🏥 أرشيف المصابين الموحد</h1>", unsafe_allow_html=True)
     
@@ -70,26 +72,41 @@ if 'logged_in' not in st.session_state:
                 st.session_state.center = u_center
                 st.session_state.is_admin = u_center in ['مركز مستشفى حديثة للتبرع بالدم', 'مختبر مستشفى حديثة للفحوصات الفيروسية']
                 st.session_state.is_doctor = (u_center == 'أطباء الاختصاص')
+                sync_activity() # تسجيل النشاط فور الدخول
                 st.rerun()
             else: st.error("❌ الرمز غير صحيح")
 
 else:
-    sync_activity()
+    sync_activity() # تحديث الوقت في كل مرة يتم فيها تحميل الصفحة
     
     # الترس (الإعدادات والنشاط)
     with st.expander(f"⚙️ إعدادات المتصل: {st.session_state.center}"):
-        time_threshold = (datetime.utcnow() - timedelta(minutes=5)).isoformat()
-        active_res = supabase.table("active_sessions").select("*").gt("last_active", time_threshold).execute()
-        centers_active = list(set([s['center_name'] for s in active_res.data if not s['is_doctor']]))
-        doctors_count = sum(1 for s in active_res.data if s['is_doctor'])
-        st.write(f"🟢 **المراكز النشطة ({len(centers_active)}):** {', '.join(centers_active) if centers_active else 'لا يوجد'}")
-        st.write(f"👨‍⚕️ **أطباء الاختصاص المتصلين:** {doctors_count}")
+        # جلب المتصلين الذين تفاعلوا خلال آخر 5 دقائق
+        time_limit = (datetime.utcnow() - timedelta(minutes=5)).isoformat()
+        active_res = supabase.table("active_sessions").select("*").gt("last_active", time_limit).execute()
+        
+        # فرز المتصلين (مراكز vs أطباء)
+        all_active = active_res.data if active_res.data else []
+        centers_list = list(set([s['center_name'] for s in all_active if not s['is_doctor']]))
+        doctors_count = sum(1 for s in all_active if s['is_doctor'])
+        
+        col_stat1, col_stat2 = st.columns(2)
+        with col_stat1:
+            st.write(f"🟢 **المراكز النشطة ({len(centers_list)}):**")
+            if centers_list:
+                for c in centers_list: st.write(f"- {c}")
+            else: st.write("لا توجد مراكز أخرى")
+        
+        with col_stat2:
+            st.write(f"👨‍⚕️ **أطباء الاختصاص:** {doctors_count}")
+        
         st.divider()
         if st.button("🔴 تسجيل خروج نهائي"):
             supabase.table("active_sessions").delete().eq("center_name", st.session_state.center).execute()
             st.session_state.clear()
             st.rerun()
 
+    # التبويبات
     tabs = st.tabs(["🔍 استعراض السجل"]) if st.session_state.is_doctor else st.tabs(["🔍 سجل المصابين", "📝 إضافة إصابة", "💬 الدردشة"])
 
     # --- تبويب السجل ---
@@ -101,7 +118,7 @@ else:
                 st.markdown(f'<div class="patient-card"><h3 style="margin:0;">👤 {p["full_name"]}</h3><p style="margin:5px 0;">🔬 {p["infection_type"]} | 🏢 {p["entry_center"]}</p></div>', unsafe_allow_html=True)
                 with st.expander("التفاصيل والتحكم"):
                     st.write(f"🎂 العمر: {p.get('age','--')} | 📱 الهاتف: {p.get('phone_number','--')}")
-                    st.write(f"📍 العنوان: {p.get('address','--')} | ⚙️ الجهاز: {p['test_device']}")
+                    st.write(f"📍 العنوان: {p.get('address','--')} | ⚙️ الجهاز: {p['test_device']} | 📅 التاريخ: {p['test_date']}")
                     if not st.session_state.is_doctor:
                         st.divider()
                         if st.session_state.is_admin or p['entry_center'] == st.session_state.center:
@@ -112,12 +129,13 @@ else:
                             with c2:
                                 with st.form(f"edit_{p['id']}"):
                                     en = st.text_input("الاسم:", value=p['full_name'])
+                                    ea = st.text_input("العمر:", value=p.get('age'))
                                     ep = st.text_input("الهاتف:", value=p.get('phone_number'))
                                     if st.form_submit_button("حفظ"):
-                                        supabase.table("patients").update({"full_name": en, "phone_number": ep}).eq("id", p['id']).execute(); st.rerun()
-        else: st.info("لا توجد بيانات.")
+                                        supabase.table("patients").update({"full_name": en, "age": ea, "phone_number": ep}).eq("id", p['id']).execute(); st.rerun()
+        else: st.info("لا توجد بيانات حالياً.")
 
-    # --- تبويب الإضافة والدردشة (للمراكز فقط) ---
+    # --- تبويب الإضافة والدردشة ---
     if not st.session_state.is_doctor:
         with tabs[1]:
             with st.form("add_new"):
@@ -127,6 +145,7 @@ else:
                 d = st.date_input("التاريخ:", value=date.today())
                 if st.form_submit_button("حفظ"):
                     if n: supabase.table("patients").insert({"full_name":n,"age":a,"phone_number":ph,"address":ad,"infection_type":i,"test_device":t,"test_date":str(d),"entry_center":st.session_state.center}).execute(); st.success("✅ تم الحفظ"); st.rerun()
+        
         with tabs[2]:
             manage_chat_silent_limit()
             msgs = supabase.table("chat_messages").select("*").order("created_at", desc=True).limit(100).execute()
