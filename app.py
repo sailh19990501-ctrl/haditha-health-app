@@ -1,84 +1,100 @@
 import streamlit as st
 from supabase import create_client
+from datetime import datetime, date
 
 # إعدادات الربط
 URL = "https://ngtkphoadvcvwqtuzawu.supabase.co"
 KEY = "sb_publishable_2gEHqJ7SDmBVIYIl48a9Bg_XaNIz2za"
 supabase = create_client(URL, KEY)
 
-st.set_page_config(page_title="نظام مختبرات حديثة", layout="wide")
+st.set_page_config(page_title="نظام مختبرات حديثة - الأرشيف", layout="wide")
 
-# تنسيق RTL
+# تنسيق الواجهة لتدعم اللغة العربية بالكامل
 st.markdown("""<style>
     .main { text-align: right; direction: rtl; }
     div[data-testid="stBlock"] { direction: rtl; }
-    div[data-testid="stMarkdownContainer"] { text-align: right; }
-    label { text-align: right !important; width: 100%; }
+    div[data-testid="stExpander"] { background-color: #f0f2f6; border-radius: 10px; border: 1px solid #d1d5db; }
+    label { font-weight: bold; font-size: 18px; color: #1e3a8a; }
+    input { text-align: right; }
     </style>""", unsafe_allow_html=True)
 
-centers = ['مركز مستشفى حديثة للتبرع بالدم', 'مختبر مستشفى حديثة للفحوصات الفيروسية', 'المركز التخصصي للاسنان', 'مركز صحي حديثة', 'مركز صحي بروانه', 'مركز صحي بني زاهر', 'مركز صحي حقلانيه', 'مركز صحي خفاجيه', 'مركز صحي بني داهر', 'مركز صحي الوس', 'مركز صحي السكران']
+centers_list = [
+    'مركز مستشفى حديثة للتبرع بالدم', 'مختبر مستشفى حديثة للفحوصات الفيروسية',
+    'المركز التخصصي للاسنان', 'مركز صحي حديثة', 'مركز صحي بروانه', 
+    'مركز صحي حقلانيه', 'مركز صحي خفاجيه', 'مركز صحي بني زاهر',
+    'مركز صحي بني داهر', 'مركز صحي الوس', 'مركز صحي السكران',
+    'أطباء الاختصاص (دخول متعدد)'
+]
 
 if 'logged_in' not in st.session_state:
-    st.title("🏥 دخول النظام الموحد - قضاء حديثة")
-    center = st.selectbox("اختر المركز:", centers)
-    code = st.text_input("أدخل كود الدخول:", type="password")
+    st.title("🔐 تسجيل الدخول للنظام")
+    center = st.selectbox("اختر المركز أو المختبر:", centers_list)
+    code = st.text_input("كود الدخول:", type="password")
     if st.button("دخول"):
         res = supabase.table("center_access").select("*").eq("center_name", center).eq("access_code", code).execute()
         if len(res.data) > 0:
             st.session_state.logged_in = True
             st.session_state.center = center
-            st.session_state.is_admin = (center == 'مركز مستشفى حديثة للتبرع بالدم')
+            st.session_state.is_admin = res.data[0]['is_admin']
             st.rerun()
         else: st.error("الكود خطأ!")
 else:
-    st.sidebar.title(f"📍 {st.session_state.center}")
-    if st.sidebar.button("خروج"):
-        del st.session_state.logged_in
+    st.sidebar.title(f"مرحباً: {st.session_state.center}")
+    if st.sidebar.button("تسجيل الخروج"):
+        st.session_state.clear()
         st.rerun()
 
-    t1, t2 = st.tabs(["➕ إضافة مراجع", "🔍 سجل الفحوصات العام"])
+    tab1, tab2 = st.tabs(["📝 إدخال (جديد أو قديم)", "🔍 البحث وعرض السجلات"])
 
-    with t1:
-        with st.form("entry_form", clear_on_submit=True):
-            n = st.text_input("الاسم الرباعي:")
-            a = st.text_input("العنوان السكني:")
-            i = st.selectbox("نوع الإصابة:", ["HCV", "HBsAg", "HIV", "Syphilis"])
-            d = st.radio("الجهاز المستخدم:", ["Strips", "ELISA", "PCR"], horizontal=True)
-            p = st.text_input("نتيجة الـ PCR:")
-            if st.form_submit_button("حفظ"):
-                if n:
-                    supabase.table("patients").insert({"full_name": n, "address": a, "infection_type": i, "test_device": d, "pcr_result": p, "entry_center": st.session_state.center}).execute()
-                    st.success("تم الحفظ بنجاح")
-                else: st.error("اكتب الاسم!")
+    with tab1:
+        st.subheader("إدخال بيانات المصابين (يدعم الأرشيف القديم)")
+        with st.form("archive_form", clear_on_submit=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                name = st.text_input("الاسم الرباعي:")
+                address = st.text_input("عنوان السكن الحالي:")
+                # هنا التقويم اللي طلبته (تقدر ترجع للسنين القديمة)
+                selected_date = st.date_input("تاريخ إجراء الفحص (اختر السنة والشهر واليوم):", 
+                                            value=date.today(),
+                                            min_value=date(1990, 1, 1), # يسمح بالرجوع لعام 1990
+                                            max_value=date.today())
+            with col2:
+                inf_type = st.selectbox("نوع الإصابة:", ["HCV", "HBsAg", "HIV", "Syphilis"])
+                test_dev = st.selectbox("جهاز الفحص:", ["Strips", "ELISA", "PCR", "VITEK"])
+                pcr_val = st.text_input("ملاحظات / نتيجة الـ PCR:")
 
-    with t2:
-        st.subheader("البحث في قاعدة البيانات الموحدة")
-        search = st.text_input("ابحث بالاسم:")
+            if st.form_submit_button("حفظ البيانات في السجل المركزي"):
+                if name and address:
+                    payload = {
+                        "full_name": name,
+                        "address": address,
+                        "test_date": str(selected_date), # يحفظ التاريخ اللي اختاريته
+                        "infection_type": inf_type,
+                        "test_device": test_dev,
+                        "pcr_result": pcr_val,
+                        "entry_center": st.session_state.center
+                    }
+                    supabase.table("patients").insert(payload).execute()
+                    st.success(f"تم بنجاح حفظ سجل: {name} بتاريخ {selected_date}")
+                else:
+                    st.warning("يرجى ملء الاسم والعنوان.")
+
+    with tab2:
+        st.subheader("🔍 البحث في قاعدة البيانات المركزية")
+        search = st.text_input("ابحث بالاسم الرباعي:")
+        
+        # عرض النتائج
         query = supabase.table("patients").select("*")
-        if search: query = query.ilike("full_name", f"%{search}%")
-        data = query.order("created_at", desc=True).execute().data
+        if search:
+            query = query.ilike("full_name", f"%{search}%")
+        
+        res = query.order("test_date", desc=True).execute()
 
-        if data:
-            for item in data:
-                with st.expander(f"👤 {item['full_name']} - ({item['entry_center']})"):
-                    # صلاحية التعديل والحذف
-                    has_permission = st.session_state.is_admin or (st.session_state.center == item['entry_center'])
-                    
-                    if has_permission:
-                        with st.form(key=f"edit_{item['id']}"):
-                            new_n = st.text_input("تعديل الاسم:", value=item['full_name'])
-                            new_p = st.text_input("تعديل PCR:", value=item['pcr_result'])
-                            col_up, col_del = st.columns(2)
-                            if col_up.form_submit_button("✅ حفظ التعديلات"):
-                                supabase.table("patients").update({"full_name": new_n, "pcr_result": new_p}).eq("id", item['id']).execute()
-                                st.success("تم التحديث")
-                                st.rerun()
-                            if col_del.form_submit_button("🗑️ حذف نهائي"):
-                                supabase.table("patients").delete().eq("id", item['id']).execute()
-                                st.warning("تم الحذف بنجاح")
-                                st.rerun()
-                    else:
-                        st.write(f"**نوع الإصابة:** {item['infection_type']}")
-                        st.write(f"**العنوان:** {item['address']}")
-                        st.info("ℹ️ لا تملك صلاحية تعديل هذا السجل لأنه تابع لمركز آخر.")
-        else: st.info("لا توجد بيانات.")
+        for row in res.data:
+            with st.expander(f"👤 {row['full_name']} | التاريخ: {row['test_date']}"):
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.write(f"**📍 العنوان:** {row['address']}")
+                    st.write(f"**📅 تاريخ الفحص:** {row['test_date']}")
+                    st.write(f"**🧬 نوع الإصابة:** {row['infection_type']}")
+
