@@ -7,93 +7,94 @@ URL = "https://ngtkphoadvcvwqtuzawu.supabase.co"
 KEY = "sb_publishable_2gEHqJ7SDmBVIYIl48a9Bg_XaNIz2za"
 supabase = create_client(URL, KEY)
 
-# --- 2. إعدادات الصفحة والتصميم الأبيض الاحترافي ---
-st.set_page_config(page_title="نظام مختبرات حديثة المركزي", layout="wide")
+# --- 2. التصميم الطبي الأبيض النقي (RTL) ---
+st.set_page_config(page_title="نظام مختبرات حديثة", layout="wide")
 
 st.markdown("""
     <style>
-    /* محاذاة الصفحة بالكامل وخلفية بيضاء */
-    .main, .stApp {
+    /* بياض كامل للخلفية */
+    .stApp {
+        background-color: #FFFFFF !important;
         direction: rtl;
-        text-align: right;
-        background-color: #ffffff; /* خلفية بيضاء */
-        color: #000000; /* خط أسود */
     }
     
-    /* جعل كافة النصوص باللون الأسود */
-    h1, h2, h3, h4, label, p, span, div {
+    /* نصوص سوداء واضحة */
+    h1, h2, h3, h4, label, p, span, div, .stMarkdown {
         color: #000000 !important;
+        text-align: right !important;
     }
 
-    /* تنسيق الحقول والقوائم */
-    div[data-testid="stSelectbox"], div[data-testid="stTextInput"], 
-    div[data-testid="stTextArea"], div[data-testid="stDateInput"] {
-        direction: rtl;
-        text-align: right;
-        background-color: #fcfcfc;
+    /* صناديق إدخال بيضاء بحدود خفيفة (تجنب البلوكات السوداء) */
+    div[data-testid="stTextInput"] input, 
+    div[data-testid="stSelectbox"] div[data-baseweb="select"] > div,
+    div[data-testid="stDateInput"] input,
+    div[data-testid="stTextArea"] textarea {
+        background-color: #FFFFFF !important;
+        color: #000000 !important;
+        border: 1px solid #D1D5DB !important;
+        border-radius: 8px !important;
     }
 
-    /* تصميم الدردشة */
-    .chat-container {
-        background: #fdfdfd;
-        padding: 15px;
-        border-radius: 12px;
-        height: 400px;
+    /* تنسيق التبويبات العلوي */
+    .stTabs [data-baseweb="tab-list"] {
+        background-color: #FFFFFF;
+        border-bottom: 1px solid #E5E7EB;
+    }
+    .stTabs [data-baseweb="tab"] {
+        color: #000000 !important;
+        font-weight: bold;
+    }
+
+    /* نظام الدردشة المدمج بتصميم طبي */
+    .chat-window {
+        background: #FFFFFF;
+        padding: 20px;
+        border-radius: 15px;
+        height: 450px;
         overflow-y: auto;
-        border: 1px solid #e0e0e0;
-        margin-bottom: 10px;
+        border: 1px solid #E5E7EB;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        margin-bottom: 15px;
         direction: rtl;
     }
-    .msg-box {
-        padding: 10px 15px;
+    .chat-bubble {
+        padding: 12px;
         border-radius: 10px;
-        margin-bottom: 8px;
-        background: #f5f5f5;
-        border-right: 5px solid #424242; /* خط أسود/رمادي غامق */
-        text-align: right;
+        margin-bottom: 10px;
+        background: #F3F4F6;
+        border-right: 4px solid #111827; /* علامة سوداء رسمية */
         color: #000000;
     }
 
-    /* إخفاء خيارات المطورين */
+    /* إخفاء شعارات المطورين */
     #MainMenu, footer, header {visibility: hidden;}
     
-    /* تنسيق الأزرار (رمادي غامق/أسود لتناسب الواجهة البيضاء) */
+    /* أزرار سوداء/رمادية رسمية */
     .stButton>button {
         width: 100%;
-        border-radius: 10px;
-        background-color: #212121;
-        color: white;
+        border-radius: 8px;
+        background-color: #000000;
+        color: #FFFFFF !important;
         font-weight: bold;
         border: none;
-    }
-    .stButton>button:hover {
-        background-color: #000000;
-        color: white;
-    }
-
-    /* لوغو متحرك في الخلفية أو الأعلى */
-    .logo-container {
-        display: flex;
-        justify-content: center;
-        padding: 20px;
+        height: 45px;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- إضافة لوغو مختبرات متحرك في أعلى الصفحة (عبر رابط Lottie) ---
+# --- 3. اللوغو الطبي المتحرك في المقدمة ---
 st.markdown("""
-    <div class="logo-container">
+    <div style="display: flex; justify-content: center; align-items: center; flex-direction: column; padding-bottom: 20px;">
         <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
         <lottie-player src="https://assets10.lottiefiles.com/packages/lf20_7wwmup6o.json"  
-            background="transparent"  speed="1"  style="width: 150px; height: 150px;"  loop  autoplay>
+            background="transparent"  speed="0.8"  style="width: 140px; height: 140px;"  loop  autoplay>
         </lottie-player>
+        <h2 style="margin-top: 10px; font-weight: bold;">نظام الإدارة المخبرية - قضاء حديثة</h2>
     </div>
 """, unsafe_allow_html=True)
 
-# --- 3. نظام الدخول ---
+# --- 4. نظام تسجيل الدخول ---
 if 'logged_in' not in st.session_state:
-    st.markdown("<h1 style='text-align: center;'>🏥 نظام مختبرات قضاء حديثة</h1>", unsafe_allow_html=True)
-    
     centers_list = [
         'مركز مستشفى حديثة للتبرع بالدم', 'مختبر مستشفى حديثة للفحوصات الفيروسية',
         'المركز التخصصي للاسنان', 'مركز صحي حديثة', 'مركز صحي بروانه', 
@@ -101,11 +102,11 @@ if 'logged_in' not in st.session_state:
         'مركز صحي الوس', 'مركز صحي السكران', 'أطباء الاختصاص (للبحث والعرض فقط)'
     ]
     
-    col_login, _ = st.columns([1, 1])
+    col_login, _ = st.columns([1.5, 1])
     with col_login:
-        c_choice = st.selectbox("اختر الجهة المستخدِمة:", centers_list)
-        a_code = st.text_input("كود الدخول السري:", type="password")
-        if st.button("دخول للنظام"):
+        c_choice = st.selectbox("جهة الدخول:", centers_list)
+        a_code = st.text_input("رمز الأمان الخاص بالجهة:", type="password")
+        if st.button("دخول آمن"):
             res = supabase.table("center_access").select("*").eq("center_name", c_choice).eq("access_code", a_code).execute()
             if res.data:
                 st.session_state.logged_in = True
@@ -114,94 +115,89 @@ if 'logged_in' not in st.session_state:
                 st.session_state.is_doctor = "أطباء الاختصاص" in c_choice
                 st.rerun()
             else:
-                st.error("❌ الكود غير صحيح")
+                st.error("❌ الرمز غير صحيح")
 else:
     # القائمة الجانبية
-    st.sidebar.markdown(f"### 👤 الملف الشخصي")
-    st.sidebar.info(f"المستخدم: {st.session_state.center}")
-    st.sidebar.success("🟢 أجهزة متصلة: 11 جهاز")
-    
-    if st.sidebar.button("🔴 تسجيل الخروج"):
+    st.sidebar.markdown(f"### 👤 {st.session_state.center}")
+    st.sidebar.success("🟢 النظام متصل (Online)")
+    if st.sidebar.button("تسجيل الخروج"):
         st.session_state.clear()
         st.rerun()
 
-    # التبويبات
+    # التبويبات بناءً على الصلاحيات
     if st.session_state.is_doctor:
-        tabs = st.tabs(["🔍 البحث في السجل", "💬 الدردشة الفورية"])
+        tabs = st.tabs(["🔍 استعلام مركزي", "💬 المحادثة المباشرة"])
     else:
-        tabs = st.tabs(["📝 تسجيل مراجع", "🔍 السجل والإدارة", "💬 الدردشة الفورية"])
+        tabs = st.tabs(["📝 إضافة سجل", "🔍 السجلات العامة", "💬 المحادثة المباشرة"])
 
-    # --- 1. واجهة الإدخال ---
+    # --- تبويب الإدخال ---
     if not st.session_state.is_doctor:
         with tabs[0]:
-            st.subheader("📋 إدخال بيانات مراجع")
-            with st.form("entry_form", clear_on_submit=True):
+            with st.form("entry_form"):
+                st.markdown("#### 📄 بيانات المراجع")
                 c1, c2 = st.columns(2)
                 with c1:
                     fname = st.text_input("الاسم الرباعي:")
-                    addr = st.text_input("العنوان:")
+                    addr = st.text_input("عنوان السكن:")
                 with c2:
                     tdate = st.date_input("تاريخ الفحص:", value=date.today())
-                    itype = st.selectbox("نوع الإصابة:", ["HCV", "HBsAg", "HIV", "Syphilis"])
+                    itype = st.selectbox("نوع الحالة:", ["HCV", "HBsAg", "HIV", "Syphilis"])
                 
                 c3, c4 = st.columns(2)
                 with c3:
-                    tdev = st.selectbox("جهاز الفحص:", ["Strips", "ELISA", "PCR", "VITEK"])
+                    tdev = st.selectbox("الجهاز المستخدم:", ["Strips", "ELISA", "PCR", "VITEK"])
                 with c4:
-                    pcr_n = st.text_input("ملاحظات إضافية:")
+                    pcr_txt = st.text_input("نتائج إضافية / ملاحظات:")
                 
-                if st.form_submit_button("حفظ وإرسال"):
+                if st.form_submit_button("حفظ في القاعدة المركزية"):
                     if fname and addr:
                         supabase.table("patients").insert({
                             "full_name": fname, "address": addr, "test_date": str(tdate),
-                            "infection_type": itype, "test_device": tdev, "pcr_result": pcr_n,
+                            "infection_type": itype, "test_device": tdev, "pcr_result": pcr_txt,
                             "entry_center": st.session_state.center
                         }).execute()
-                        st.success(f"✅ تم الحفظ: {fname}")
-                    else:
-                        st.warning("⚠️ أكمل الاسم والعنوان")
+                        st.success("✅ تم الحفظ بنجاح")
+                    else: st.warning("أكمل الحقول المطلوبة")
 
-    # --- 2. واجهة البحث ---
+    # --- تبويب البحث ---
     search_idx = 0 if st.session_state.is_doctor else 1
     with tabs[search_idx]:
-        st.subheader("🔍 استعلام عن حالة")
-        q_name = st.text_input("ابحث بالاسم:")
-        if q_name:
-            results = supabase.table("patients").select("*").ilike("full_name", f"%{q_name}%").execute()
-            if results.data:
-                for row in results.data:
-                    with st.expander(f"📄 {row['full_name']} | {row.get('infection_type','-')}"):
-                        ca, cb = st.columns(2)
-                        with ca:
-                            st.write(f"**📍 العنوان:** {row.get('address','-')}")
-                            st.write(f"**📅 التاريخ:** {row.get('test_date','-')}")
-                        with cb:
-                            st.write(f"**🏢 المركز:** {row.get('entry_center','-')}")
-                            st.write(f"**🔬 الجهاز:** {row.get('test_device','-')}")
-                        
-                        if not st.session_state.is_doctor:
-                            if st.session_state.is_admin or st.session_state.center == row.get('entry_center'):
-                                if st.button(f"🗑️ حذف", key=f"del_{row['id']}"):
-                                    supabase.table("patients").delete().eq("id", row['id']).execute()
-                                    st.rerun()
+        st.markdown("#### 🔍 البحث عن حالة")
+        q = st.text_input("ادخل اسم المراجع:")
+        if q:
+            res = supabase.table("patients").select("*").ilike("full_name", f"%{q}%").execute()
+            if res.data:
+                for row in res.data:
+                    with st.expander(f"👤 {row['full_name']} - {row['infection_type']}"):
+                        st.write(f"**📍 العنوان:** {row.get('address','-')} | **📅 التاريخ:** {row.get('test_date','-')}")
+                        st.write(f"**🏢 الجهة:** {row.get('entry_center','-')} | **🔬 الجهاز:** {row.get('test_device','-')}")
+                        if not st.session_state.is_doctor and (st.session_state.is_admin or st.session_state.center == row['entry_center']):
+                            if st.button(f"حذف السجل نهائياً", key=f"d_{row['id']}"):
+                                supabase.table("patients").delete().eq("id", row['id']).execute()
+                                st.rerun()
 
-    # --- 3. الدردشة ---
+    # --- تبويب المحادثة المباشرة المدمج ---
     chat_idx = 1 if st.session_state.is_doctor else 2
     with tabs[chat_idx]:
-        st.subheader("💬 دردشة التواصل")
-        messages = supabase.table("chat_messages").select("*").order("created_at", desc=True).limit(30).execute()
+        st.markdown("#### 💬 التواصل الفوري بين المراكز والمختبرات")
         
-        chat_html = "<div class='chat-container'>"
-        for m in reversed(messages.data):
-            chat_html += f"<div class='msg-box'><b>{m['username']}:</b> {m['message']}</div>"
+        # عرض الرسائل بتصميم فقاعات
+        msgs = supabase.table("chat_messages").select("*").order("created_at", desc=True).limit(25).execute()
+        
+        chat_html = "<div class='chat-window'>"
+        for m in reversed(msgs.data):
+            time_only = m['created_at'][11:16]
+            chat_html += f"<div class='chat-bubble'><b>{m['username']}</b> <small style='color:#666;'>({time_only})</small><br>{m['message']}</div>"
         chat_html += "</div>"
         st.markdown(chat_html, unsafe_allow_html=True)
         
-        c_msg, c_btn = st.columns([4, 1])
-        with c_msg:
-            user_msg = st.text_input("اكتب هنا...", key="chat_input", label_visibility="collapsed")
-        with c_btn:
-            if st.button("إرسال"):
-                if user_msg:
-                    supabase.table("chat_messages").insert({"username": st.session_state.center, "message": user_msg}).execute()
-                    st.rerun()
+        # حقل الإرسال
+        with st.container():
+            c_input, c_send = st.columns([5, 1])
+            with c_input:
+                new_msg = st.text_input("اكتب رسالتك هنا...", key="msg_input", label_visibility="collapsed")
+            with c_send:
+                if st.button("إرسال"):
+                    if new_msg:
+                        supabase.table("chat_messages").insert({"username": st.session_state.center, "message": new_msg}).execute()
+                        st.rerun()
