@@ -11,39 +11,39 @@ try:
 except Exception:
     st.error("فشل الاتصال بالسيرفر المركزي.")
 
-# --- 2. التنسيق البصري (منع النص الطولي وترتيب الواجهة) ---
+# --- 2. التنسيق البصري الاحترافي ---
 st.set_page_config(page_title="أرشيف المصابين الموحد", layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown("""<style>
     .stApp { background-color: #0e1117; color: white; direction: rtl; }
-    .main .block-container { direction: rtl; text-align: right; max-width: 100% !important; padding: 1rem 3rem !important; }
+    .main .block-container { direction: rtl; text-align: right; max-width: 100% !important; padding: 1rem 2rem !important; }
     
-    /* إخفاء السايدبار لضمان العرض الكامل */
+    /* منع السايدبار */
     [data-testid="stSidebar"] { display: none; }
     
-    /* بطاقة المراجع العريضة جداً */
+    /* بطاقة المصاب - عريضة ومرتبة */
     .patient-card {
         background: #1e293b; padding: 25px; border-radius: 15px;
         margin-bottom: 20px; border-right: 10px solid #3b82f6; width: 100%;
         box-shadow: 0 4px 15px rgba(0,0,0,0.3);
     }
     
-    /* نظام الدردشة المطور */
+    /* نظام الدردشة المطور (داخل الصندوق) */
     .chat-container {
-        height: 450px; overflow-y: auto; background: #0b141a;
+        height: 400px; overflow-y: auto; background: #0b141a;
         padding: 20px; border-radius: 15px; border: 1px solid #202c33;
         display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px;
     }
     .chat-bubble {
-        background: #202c33; padding: 12px 18px; border-radius: 12px;
+        background: #202c33; padding: 12px; border-radius: 12px;
         width: fit-content; max-width: 85%; border-right: 4px solid #00a884;
     }
-    .chat-sender { color: #00a884; font-weight: bold; font-size: 0.85em; margin-bottom: 5px; }
+    .chat-sender { color: #00a884; font-weight: bold; font-size: 0.85em; }
 
     #MainMenu, footer, header { visibility: hidden; }
 </style>""", unsafe_allow_html=True)
 
-# --- 3. إدارة النشاط (النشطين حالياً) ---
+# --- 3. نظام النشاط ---
 def update_activity():
     if 'center' in st.session_state:
         try:
@@ -63,10 +63,9 @@ def get_active_users():
         return list(set(centers)), doctors_count
     except: return [], 0
 
-# --- 4. تسجيل الدخول ---
+# --- 4. الدخول ---
 if 'logged_in' not in st.session_state:
-    st.markdown("<h1 style='text-align: center; color: #3b82f6;'>🏥 أرشيف المصابين بالأمراض الانتقالية</h1>", unsafe_allow_html=True)
-    
+    st.markdown("<h1 style='text-align: center;'>🏥 أرشيف المصابين بالأمراض الانتقالية</h1>", unsafe_allow_html=True)
     access_map = {
         'مركز مصرف الدم الرئيسي': 'HAD-BLOOD-2026',
         'مختبر مستشفى حديثة للفحوصات الفيروسية': 'HAD-VIRUS-2026',
@@ -74,7 +73,6 @@ if 'logged_in' not in st.session_state:
         'مركز صحي بروانه': 'BAR-HEALTH-2026',
         'أطباء الاختصاص (طبيب الاختصاص)': 'DOC-READ-2026'
     }
-    
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
         u_center = st.selectbox("جهة العمل:", list(access_map.keys()))
@@ -87,113 +85,80 @@ if 'logged_in' not in st.session_state:
                 st.session_state.is_doctor = (u_center == 'أطباء الاختصاص (طبيب الاختصاص)')
                 update_activity()
                 st.rerun()
-            else: st.error("⚠️ الرمز السري غير صحيح!")
-
+            else: st.error("الرمز خطأ")
 else:
     update_activity()
     active_centers, active_docs = get_active_users()
-    
-    # --- 5. أيقونة المستخدم (أعلى الصفحة) ---
-    with st.expander(f"👤 {st.session_state.center} | 🟢 النشطين: {len(active_centers) + active_docs}"):
-        st.write(f"**حسابك:** {st.session_state.center}")
-        st.write(f"**المراكز المتصلة:** {', '.join(active_centers) if active_centers else 'أنت فقط'}")
-        st.write(f"**عدد الأطباء المتصلين:** {active_docs}")
-        if st.button("🔴 تسجيل الخروج"):
-            try: supabase.table("active_sessions").delete().eq("center_name", st.session_state.center).execute()
-            except: pass
+    with st.expander(f"👤 {st.session_state.center} | 🟢 المتصلون: {len(active_centers) + active_docs}"):
+        st.write(f"المراكز النشطة: {', '.join(active_centers)}")
+        st.write(f"الأطباء المتصلون: {active_docs}")
+        if st.button("تسجيل الخروج"):
             st.session_state.clear()
             st.rerun()
 
-    # --- 6. التبويبات ---
-    if st.session_state.is_doctor:
-        tabs = st.tabs(["🔍 استعراض السجل العام والبحث"])
-    else:
-        tabs = st.tabs(["🔍 سجل المراجعين والبحث", "📝 إضافة إصابة جديدة", "💬 الدردشة الفورية"])
+    # --- 5. التبويبات ---
+    tabs = st.tabs(["🔍 السجل والبحث", "📝 إضافة جديد", "💬 الدردشة"]) if not st.session_state.is_doctor else st.tabs(["🔍 سجل المصابين"])
 
-    # --- تبويب السجل ---
     with tabs[0]:
-        st.subheader("🔍 قاعدة بيانات أرشيف حديثة الموحدة")
-        search_q = st.text_input("ابحث عن اسم المصاب الرباعي:")
-        
-        # جلب البيانات
-        if search_q:
-            res = supabase.table("patients").select("*").ilike("full_name", f"%{search_q}%").order("created_at", desc=True).execute()
-        else:
-            res = supabase.table("patients").select("*").order("created_at", desc=True).execute()
+        st.subheader("🔍 استعراض سجل المصابين")
+        q = st.text_input("ابحث عن اسم:")
+        res = supabase.table("patients").select("*").ilike("full_name", f"%{q}%").order("created_at", desc=True).execute()
         
         if res.data:
             for p in res.data:
-                can_modify = st.session_state.is_admin or (p.get('entry_center') == st.session_state.center)
-                
+                can_manage = st.session_state.is_admin or (p.get('entry_center') == st.session_state.center)
                 st.markdown(f"""<div class="patient-card">
-                    <h3>👤 {p.get('full_name', 'غير متوفر')}</h3>
-                    <p>📱 <b>رقم الهاتف:</b> {p.get('phone_number', '---')} | 📍 <b>العنوان الكامل:</b> {p.get('address', '---')}</p>
-                    <p>🔬 <b>نوع الإصابة:</b> {p.get('infection_type', '---')} | ⚙️ <b>التقنية:</b> {p.get('test_device', '---')}</p>
-                    <p>🏢 <b>جهة الإدخال:</b> {p.get('entry_center', '---')} | 📅 <b>تاريخ الفحص:</b> {p.get('test_date', '---')}</p>
-                    <p style="color: #94a3b8;">📝 <b>الملاحظات:</b> {p.get('pcr_result', 'لا يوجد')}</p>
+                    <h3>👤 {p.get('full_name')}</h3>
+                    <p>📱 الهاتف: {p.get('phone_number')} | 📍 العنوان: {p.get('address')}</p>
+                    <p>🔬 الإصابة: {p.get('infection_type')} | ⚙️ الجهاز: {p.get('test_device')} | 📅 التاريخ: {p.get('test_date')}</p>
+                    <p>🏢 المركز المسجل: {p.get('entry_center')}</p>
                 </div>""", unsafe_allow_html=True)
                 
-                if not st.session_state.is_doctor and can_modify:
+                if can_manage and not st.session_state.is_doctor:
                     c1, c2 = st.columns(2)
                     with c1:
-                        if st.button(f"🗑️ مسح السجل", key=f"del_{p['id']}"):
+                        if st.button(f"🗑️ مسح نهائي", key=f"del_{p['id']}"):
                             supabase.table("patients").delete().eq("id", p['id']).execute()
+                            st.success("تم الحذف")
                             st.rerun()
                     with c2:
                         with st.expander("🛠️ تعديل البيانات"):
-                            with st.form(f"edit_{p['id']}"):
-                                e_name = st.text_input("تعديل الاسم:", value=p.get('full_name'))
-                                e_phone = st.text_input("تعديل الهاتف:", value=p.get('phone_number'))
-                                e_addr = st.text_input("تعديل العنوان:", value=p.get('address'))
-                                e_date = st.date_input("تعديل التاريخ:", value=date.today())
-                                if st.form_submit_button("حفظ التغييرات"):
-                                    supabase.table("patients").update({
-                                        "full_name": e_name, 
-                                        "phone_number": e_phone, 
-                                        "address": e_addr,
-                                        "test_date": str(e_date)
-                                    }).eq("id", p['id']).execute()
+                            with st.form(f"ed_{p['id']}"):
+                                en = st.text_input("الاسم:", value=p.get('full_name'))
+                                ep = st.text_input("الهاتف:", value=p.get('phone_number'))
+                                ea = st.text_input("العنوان:", value=p.get('address'))
+                                ei = st.selectbox("الإصابة:", ["HCV", "HBsAg", "HIV", "Syphilis"], index=0)
+                                ed = st.selectbox("الجهاز:", ["Strips", "ELISA", "PCR"], index=0)
+                                et = st.date_input("التاريخ:", value=date.today())
+                                if st.form_submit_button("حفظ"):
+                                    supabase.table("patients").update({"full_name":en, "phone_number":ep, "address":ea, "infection_type":ei, "test_device":ed, "test_date":str(et)}).eq("id", p['id']).execute()
                                     st.rerun()
-        else: st.info("لا توجد بيانات حالياً.")
+        else: st.info("لا توجد بيانات")
 
-    # --- تبويب الإضافة ---
     if not st.session_state.is_doctor:
         with tabs[1]:
-            st.subheader("📝 تسجيل مراجع جديد")
-            with st.form("add_form", clear_on_submit=True):
-                ca, cb = st.columns(2)
-                with ca:
-                    n_name = st.text_input("الاسم الرباعي:")
-                    n_phone = st.text_input("رقم الهاتف:")
-                    n_addr = st.text_input("العنوان بالتفصيل:")
-                with cb:
-                    n_inf = st.selectbox("الإصابة:", ["HCV", "HBsAg", "HIV", "Syphilis"])
-                    n_tech = st.selectbox("التقنية:", ["Strips", "ELISA", "PCR"])
-                    n_date = st.date_input("التاريخ:", value=date.today())
-                n_note = st.text_area("ملاحظات إضافية:")
-                if st.form_submit_button("إرسال للسجل المركزي"):
-                    if n_name:
-                        supabase.table("patients").insert({
-                            "full_name": n_name, "phone_number": n_phone, "address": n_addr,
-                            "infection_type": n_inf, "test_device": n_tech, "test_date": str(n_date),
-                            "pcr_result": n_note, "entry_center": st.session_state.center
-                        }).execute()
-                        st.success("✅ تم حفظ المصاب بنجاح")
-                    else: st.error("⚠️ يجب كتابة الاسم الرباعي.")
+            with st.form("add_f", clear_on_submit=True):
+                c_a, c_b = st.columns(2)
+                with c_a:
+                    name = st.text_input("الاسم الرباعي:")
+                    phone = st.text_input("رقم الهاتف:")
+                    addr = st.text_input("العنوان بالتفصيل:")
+                with c_b:
+                    inf = st.selectbox("نوع الإصابة:", ["HCV", "HBsAg", "HIV", "Syphilis"])
+                    tech = st.selectbox("الجهاز المستخدم:", ["Strips", "ELISA", "PCR"])
+                    dt = st.date_input("تاريخ الفحص:", value=date.today())
+                if st.form_submit_button("حفظ"):
+                    supabase.table("patients").insert({"full_name": name, "phone_number": phone, "address": addr, "infection_type": inf, "test_device": tech, "test_date": str(dt), "entry_center": st.session_state.center}).execute()
+                    st.success("تم الحفظ")
 
-        # --- تبويب الدردشة ---
         with tabs[2]:
             st.markdown('<div class="chat-container">', unsafe_allow_html=True)
-            msgs = supabase.table("chat_messages").select("*").order("created_at", desc=True).limit(40).execute()
+            msgs = supabase.table("chat_messages").select("*").order("created_at", desc=True).limit(30).execute()
             for m in reversed(msgs.data):
-                st.markdown(f"""<div class="chat-bubble">
-                    <div class="chat-sender">{m['username']}</div>
-                    <div>{m['message']}</div>
-                </div>""", unsafe_allow_html=True)
+                st.markdown(f'<div class="chat-bubble"><div class="chat-sender">{m["username"]}</div>{m["message"]}</div>', unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
-            
-            with st.form("chat_box", clear_on_submit=True):
-                msg_txt = st.text_input("اكتب رسالتك للمراكز الأخرى...")
-                if st.form_submit_button("إرسال") and msg_txt:
-                    supabase.table("chat_messages").insert({"username": st.session_state.center, "message": msg_txt}).execute()
+            with st.form("ch_f", clear_on_submit=True):
+                txt = st.text_input("رسالتك...")
+                if st.form_submit_button("إرسال") and txt:
+                    supabase.table("chat_messages").insert({"username": st.session_state.center, "message": txt}).execute()
                     st.rerun()
