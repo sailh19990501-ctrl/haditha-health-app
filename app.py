@@ -52,7 +52,7 @@ def manage_chat_silent_limit():
             supabase.table("chat_messages").delete().lt("id", cutoff_id).execute()
     except: pass
 
-# --- 4. نظام الدخول وتحديث قائمة المراكز (بالتعديلات الجديدة) ---
+# --- 4. نظام الدخول وقائمة المراكز (بدون كي 3) ---
 if 'logged_in' not in st.session_state:
     st.markdown("<h1 style='text-align: center;'>🏥 أرشيف المصابين الموحد</h1>", unsafe_allow_html=True)
     
@@ -68,7 +68,6 @@ if 'logged_in' not in st.session_state:
         'مركز صحي الخفاجية': 'KHAF-HEALTH-2026',
         'مركز صحي السد': 'SAD-HEALTH-2026',
         'مركز صحي السكك': 'SIKAK-HEALTH-2026',
-        'مركز صحي كي 3': 'K3-HEALTH-2026',
         'أطباء الاختصاص (طبيب الاختصاص)': 'DOC-READ-2026'
     }
     
