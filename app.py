@@ -1,4 +1,4 @@
-    # --- تبويب السجل العام والبحث (تعديل لعرض الكل تلقائياً) ---
+# --- تبويب السجل العام والبحث (تعديل لعرض الكل تلقائياً) ---
     search_tab_idx = 0 if st.session_state.is_doctor else 1
     with main_tabs[search_tab_idx]:
         st.subheader("🔍 السجل العام للمراجعين")
