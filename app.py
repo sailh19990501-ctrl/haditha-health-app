@@ -9,11 +9,11 @@ supabase = create_client(URL, KEY)
 
 st.set_page_config(page_title="نظام مختبرات حديثة المركزي", layout="wide")
 
-# تنسيق الواجهة
+# تنسيق الواجهة RTL
 st.markdown("""<style>
     .main { text-align: right; direction: rtl; }
     div[data-testid="stBlock"] { direction: rtl; }
-    div[data-testid="stExpander"] { background-color: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; }
+    div[data-testid="stExpander"] { background-color: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; text-align: right; }
     label { font-weight: bold; font-size: 16px; color: #1e40af; }
     </style>""", unsafe_allow_html=True)
 
@@ -46,7 +46,6 @@ else:
     is_doc = st.session_state.is_doctor
     tabs = st.tabs(["🔍 البحث في السجل"] if is_doc else ["📝 إدخال بيانات", "🔍 البحث في السجل"])
 
-    # --- خانة الإدخال ---
     if not is_doc:
         with tabs[0]:
             st.subheader("تسجيل حالة جديدة")
@@ -62,45 +61,51 @@ else:
                     rem = st.text_input("ملاحظات:")
                 
                 if st.form_submit_button("حفظ"):
-                    if name and addr:
+                    if name:
                         supabase.table("patients").insert({
                             "full_name": name, "address": addr, "test_date": str(test_dt),
                             "infection_type": inf, "test_device": dev, "pcr_result": rem,
                             "entry_center": st.session_state.center
                         }).execute()
-                        st.success("تم الحفظ")
-                    else: st.warning("اكمل البيانات")
+                        st.success("تم الحفظ بنجاح")
+                        st.rerun()
+                    else: st.warning("يرجى كتابة الاسم على الأقل")
 
-    # --- خانة البحث (معدلة لتظهر البيانات القديمة والجديدة) ---
     search_tab = tabs[0] if is_doc else tabs[1]
     with search_tab:
         search = st.text_input("🔍 ابحث بالاسم الرباعي:")
         if search:
+            # البحث عن الاسم
             res = supabase.table("patients").select("*").ilike("full_name", f"%{search}%").execute()
             if res.data:
                 for row in res.data:
-                    # استخراج القيم مع وضع "غير متوفر" إذا كانت فارغة (لحل مشكلة البيانات القديمة)
-                    p_name = row.get('full_name', 'بدون اسم')
-                    p_date = row.get('test_date', 'تاريخ قديم')
-                    p_addr = row.get('address', 'غير مسجل')
-                    p_center = row.get('entry_center', 'مركز سابق')
-                    
-                    with st.expander(f"📄 مراجع: {p_name} | التاريخ: {p_date}"):
+                    # معالجة البيانات المفقودة للأسماء القديمة
+                    p_name = row.get('full_name') or "بدون اسم"
+                    p_date = row.get('test_date') or "بيانات قديمة"
+                    p_addr = row.get('address') or "غير مسجل"
+                    p_center = row.get('entry_center') or "غير محدد"
+                    p_inf = row.get('infection_type') or "-"
+                    p_dev = row.get('test_device') or "-"
+
+                    with st.expander(f"👤 {p_name} | الحالة: {p_inf}"):
                         col1, col2 = st.columns(2)
                         with col1:
-                            st.write(f"**📍 السكن:** {p_addr}")
-                            st.write(f"**📅 التاريخ:** {p_date}")
-                            st.write(f"**🧬 الإصابة:** {row.get('infection_type', '-')}")
+                            st.write(f"**📍 العنوان:** {p_addr}")
+                            st.write(f"**📅 تاريخ الفحص:** {p_date}")
                         with col2:
-                            st.write(f"**🏢 المركز:** {p_center}")
-                            st.write(f"**🔬 الجهاز:** {row.get('test_device', '-')}")
+                            st.write(f"**🏢 المركز الفاحص:** {p_center}")
+                            st.write(f"**🔬 جهاز الفحص:** {p_dev}")
                         
                         if not is_doc:
-                            if st.session_state.is_admin or st.session_state.center == row.get('entry_center'):
+                            if st.session_state.is_admin or st.session_state.center == p_center:
                                 if st.button(f"🗑️ حذف السجل", key=f"del_{row['id']}"):
                                     supabase.table("patients").delete().eq("id", row['id']).execute()
+                                    st.success("تم الحذف")
                                     st.rerun()
-            else: st.info("لا توجد نتائج.")
+            else:
+                st.info("لا توجد نتائج مطابقة لهذا الاسم.")
+
+
 
 
 
