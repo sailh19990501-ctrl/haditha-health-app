@@ -1,6 +1,6 @@
 import streamlit as st
 from supabase import create_client
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 
 # --- 1. إعدادات الاتصال ---
 URL = "https://ngtkphoadvcvwqtuzawu.supabase.co"
@@ -73,10 +73,16 @@ else:
 
     tabs = st.tabs(["🔍 السجل الموحد"]) if st.session_state.is_doctor else st.tabs(["🔍 السجل الموحد", "📝 إضافة مصاب", "💬 الدردشة"])
 
-    # --- 4. السجل الموحد (تحديث آني وقوي) ---
+    # --- 4. السجل الموحد (مع خيار التعديل لكل مركز) ---
     with tabs[0]:
         search_q = st.text_input("🔍 ابحث عن اسم:")
-        data = supabase.table("patients").select("*").ilike("full_name", f"%{search_q}%").order("created_at", desc=True).execute()
+        
+        query = supabase.table("patients").select("*")
+        if not (st.session_state.is_admin or st.session_state.is_doctor):
+            query = query.eq("entry_center", st.session_state.center)
+            
+        data = query.ilike("full_name", f"%{search_q}%").order("created_at", desc=True).execute()
+        
         if data.data:
             for p in data.data:
                 st.markdown(f"""<div class="patient-card">
@@ -85,20 +91,37 @@ else:
                     <span class="p-info">| 🏢 {p['entry_center']}</span>
                 </div>""", unsafe_allow_html=True)
                 
-                with st.expander("🔍 عرض التفاصيل الكاملة"):
-                    st.write(f"🎂 العمر: {p.get('age','--')} | 📱 الهاتف: {p.get('phone_number','--')}")
-                    st.write(f"📍 العنوان: {p.get('address','--')} | 📅 التاريخ: {p['test_date']}")
-                    st.write(f"⚙️ الجهاز: {p['test_device']}")
+                with st.expander("🔍 عرض التفاصيل / تعديل البيانات"):
+                    # عرض البيانات الأساسية
+                    st.write(f"📅 التاريخ: {p['test_date']} | ⚙️ الجهاز: {p['test_device']}")
                     
-                    if not st.session_state.is_doctor:
-                        if st.session_state.is_admin or p['entry_center'] == st.session_state.center:
-                            st.divider()
-                            if st.button(f"🗑️ حذف السجل", key=f"del_{p['id']}"):
+                    # التحقق من الصلاحية لإظهار فورم التعديل
+                    if st.session_state.is_admin or p['entry_center'] == st.session_state.center:
+                        st.divider()
+                        with st.form(f"edit_form_{p['id']}"):
+                            st.write("📝 **تعديل بيانات المصاب:**")
+                            new_name = st.text_input("الاسم:", value=p['full_name'])
+                            new_age = st.text_input("العمر:", value=p.get('age', ''))
+                            new_phone = st.text_input("الهاتف:", value=p.get('phone_number', ''))
+                            new_address = st.text_input("العنوان:", value=p.get('address', ''))
+                            
+                            col_f1, col_f2 = st.columns(2)
+                            if col_f1.form_submit_button("💾 حفظ التعديلات"):
+                                supabase.table("patients").update({
+                                    "full_name": new_name, "age": new_age,
+                                    "phone_number": new_phone, "address": new_address
+                                }).eq("id", p['id']).execute()
+                                st.success("تم التحديث!")
+                                st.rerun()
+                                
+                            if col_f2.form_submit_button("🗑️ حذف السجل"):
                                 supabase.table("patients").delete().eq("id", p['id']).execute()
                                 st.rerun()
-        else: st.info("لا توجد بيانات مطابقة.")
+                    else:
+                        st.info("لديك صلاحية العرض فقط لهذا السجل.")
+        else: st.info("لا توجد سجلات.")
 
-    # --- 5. إضافة مصاب (تحديث فوري بعد الإضافة) ---
+    # --- 5. إضافة مصاب ---
     if not st.session_state.is_doctor:
         with tabs[1]:
             with st.form("add_p_form", clear_on_submit=True):
@@ -113,16 +136,14 @@ else:
                     t = st.selectbox("الجهاز المستخدم:", ["Strips", "ELISA", "PCR"])
                 d = st.date_input("التاريخ:", value=date.today())
                 
-                if st.form_submit_button("🚀 إرسال إلى قاعدة البيانات المركزية"):
+                if st.form_submit_button("🚀 إرسال إلى قاعدة البيانات"):
                     if n:
                         supabase.table("patients").insert({
                             "full_name": n, "age": a, "phone_number": ph,
                             "address": ad, "infection_type": i, "test_device": t,
                             "test_date": str(d), "entry_center": st.session_state.center
                         }).execute()
-                        st.success("✅ تم الإضافة بنجاح!")
-                        # هذا السطر يضمن تحديث السجل فوراً في المتصفح
-                        st.session_state["added"] = True
+                        st.success("✅ تم الإضافة!")
                         st.rerun()
 
     # --- 6. الدردشة ---
